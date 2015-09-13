@@ -1,0 +1,38 @@
+{
+	"ImportPath": "github.com/blacklabeldata/sshh",
+	"GoVersion": "go1.4.2",
+	"Deps": [
+		{
+			"ImportPath": "github.com/mattn/go-colorable",
+			"Rev": "d67e0b7d1797975196499f79bcc322c08b9f218b"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Rev": "ae0b1f8f8004be68d791a576e3d8e7648ab41449"
+		},
+		{
+			"ImportPath": "github.com/mgutz/ansi",
+			"Rev": "22ddafb24adc4786c83841aa3021349818c898e4"
+		},
+		{
+			"ImportPath": "github.com/mgutz/logxi/v1",
+			"Rev": "002f5bf05304c9df2910ef0a5f9e5ec6bbc7c8c3"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Rev": "de7fcff264cd05cc0c90c509ea789a436a0dd206"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/suite",
+			"Rev": "de7fcff264cd05cc0c90c509ea789a436a0dd206"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "c84e1f8e3a7e322d497cd16c0e8a13c7e127baf3"
+		},
+		{
+			"ImportPath": "gopkg.in/tomb.v2",
+			"Rev": "14b3d72120e8d10ea6e6b7f87f7175734b1faab8"
+		}
+	]
+}
