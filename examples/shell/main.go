@@ -64,6 +64,11 @@ func main() {
 			}
 			return
 		},
+		AuthLogCallback: func(conn ssh.ConnMetadata, method string, err error) {
+			if err == nil {
+				logger.Info("Successful login", "user", conn.User(), "method", method)
+			}
+		},
 		// PublicKeyCallback: func(conn ssh.ConnMetadata, key ssh.PublicKey) (perm *ssh.Permissions, err error) {
 		// 	return nil, fmt.Errorf("Unauthorized")
 		// },
