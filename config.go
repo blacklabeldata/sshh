@@ -53,16 +53,7 @@ type Config struct {
 
 // SSHConfig returns an SSH server configuration. If the AuthLogCallback is nil at the
 // time this method is called, the default function will be used.
-func (c *Config) SSHConfig() (*ssh.ServerConfig, error) {
-
-	// Set a default auth log function
-	if c.AuthLogCallback == nil {
-		c.AuthLogCallback = func(conn ssh.ConnMetadata, method string, err error) {
-			if err == nil {
-				c.Logger.Info("Successful login", "user", conn.User(), "method", method)
-			}
-		}
-	}
+func (c *Config) SSHConfig() *ssh.ServerConfig {
 
 	// Create server config
 	sshConfig := &ssh.ServerConfig{
@@ -72,7 +63,7 @@ func (c *Config) SSHConfig() (*ssh.ServerConfig, error) {
 		AuthLogCallback:   c.AuthLogCallback,
 	}
 	sshConfig.AddHostKey(c.PrivateKey)
-	return sshConfig, nil
+	return sshConfig
 }
 
 // Handler is a helper method for determining if a channel handler has been defined.

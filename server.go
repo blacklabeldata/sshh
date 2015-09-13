@@ -2,6 +2,7 @@ package sshh
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -15,11 +16,7 @@ import (
 func NewSSHServer(cfg *Config) (server SSHServer, err error) {
 
 	// Create ssh config for server
-	sshConfig, e := cfg.SSHConfig()
-	if e != nil {
-		err = e
-		return
-	}
+	sshConfig := cfg.SSHConfig()
 	cfg.sshConfig = sshConfig
 
 	// Validate the ssh bind addr
@@ -101,7 +98,13 @@ func (s *SSHServer) listen() error {
 				// Handle connection
 				s.config.Logger.Info("Successful TCP connection:", tcpConn.RemoteAddr().String())
 				t.Go(func() error {
-					return s.handleTCPConnection(t, tcpConn)
+
+					// Return the error for the
+					err := s.handleTCPConnection(t, tcpConn)
+					if err != io.EOF {
+						return err
+					}
+					return nil
 				})
 			}
 		}
@@ -119,6 +122,7 @@ func (s *SSHServer) handleTCPConnection(parentTomb tomb.Tomb, conn net.Conn) err
 	sshConn, channels, requests, err := ssh.NewServerConn(conn, s.config.sshConfig)
 	if err != nil {
 		s.config.Logger.Warn("SSH handshake failed:", "addr", conn.RemoteAddr().String(), "error", err)
+		conn.Close()
 		return err
 	}
 
@@ -153,6 +157,7 @@ func (s *SSHServer) handleTCPConnection(parentTomb tomb.Tomb, conn net.Conn) err
 				if !ok {
 					s.config.Logger.Info("UnknownChannelType", "type", chType)
 					ch.Reject(ssh.UnknownChannelType, chType)
+					t.Kill(nil)
 					break OUTER
 				}
 
@@ -164,10 +169,18 @@ func (s *SSHServer) handleTCPConnection(parentTomb tomb.Tomb, conn net.Conn) err
 				}
 
 				t.Go(func() error {
-					return handler.Handle(t, sshConn, channel, requests)
+					err := handler.Handle(t, sshConn, channel, requests)
+					if err != nil {
+						s.config.Logger.Warn("Handler raised an error", err)
+					}
+					s.config.Logger.Warn("Exiting channel", chType)
+					t.Kill(err)
+					return err
 				})
 			case <-parentTomb.Dying():
 				t.Kill(nil)
+				break OUTER
+			case <-t.Dying():
 				break OUTER
 			}
 		}
