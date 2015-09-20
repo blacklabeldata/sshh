@@ -39,6 +39,7 @@ func NewSSHServer(cfg *Config) (server SSHServer, err error) {
 		return
 	}
 	server.listener = listener
+	server.Addr = listener.Addr().(*net.TCPAddr)
 	server.config = cfg
 	return
 }
@@ -46,6 +47,7 @@ func NewSSHServer(cfg *Config) (server SSHServer, err error) {
 // SSHServer handles all the incoming connections as well as handler dispatch.
 type SSHServer struct {
 	config   *Config
+	Addr     *net.TCPAddr
 	listener *net.TCPListener
 	t        tomb.Tomb
 }
