@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
 
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 )
 
 // TestUserTestSuite runs the UserTestSuite
@@ -36,13 +38,19 @@ func (suite *ServerSuite) createConfig() Config {
 		suite.Fail("Private key could not be parsed", err.Error())
 	}
 
+	r := router.New(logger, nil, nil)
+	r.Register("/echo", &EchoHandler{log.New("echo")})
+	r.Register("/bad", &BadHandler{})
+
 	// Create config
 	cfg := Config{
+		Context:  context.Background(),
 		Deadline: time.Second,
-		Handlers: map[string]SSHHandler{
-			"echo": &EchoHandler{log.New("echo")},
-			"bad":  &BadHandler{},
-		},
+		Router:   r,
+		// Handlers: map[string]SSHHandler{
+		// 	"echo": &EchoHandler{log.New("echo")},
+		// 	"bad":  &BadHandler{},
+		// },
 		Logger:            logger,
 		Bind:              ":9022",
 		PrivateKey:        signer,
@@ -89,7 +97,7 @@ func (suite *ServerSuite) TestClientConnection() {
 	defer client.Close()
 
 	// Open channel
-	channel, requests, err := client.OpenChannel("echo", []byte{})
+	channel, requests, err := client.OpenChannel("/echo", []byte{})
 	if err != nil {
 		suite.Fail(err.Error())
 		return
@@ -146,7 +154,7 @@ func (suite *ServerSuite) TestHandlerError() {
 	defer client.Close()
 
 	// Open channel
-	channel, requests, err := client.OpenChannel("bad", []byte{})
+	channel, requests, err := client.OpenChannel("/bad", []byte{})
 	if err != nil {
 		suite.Fail(err.Error())
 		return
