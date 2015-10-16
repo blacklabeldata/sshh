@@ -4,13 +4,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 )
 
 // Config is used to setup the SSHServer, including the server config and the SSHHandlers.
 type Config struct {
 	sync.Mutex
+
+	// Context allows for lifecycle management of the server.
+	Context context.Context
 
 	// Deadline is the maximum time the listener will block
 	// between connections. As a consequence, this duration
@@ -23,7 +28,10 @@ type Config struct {
 	// client connects and creates a channel with a defined SSHHandler, the handler
 	// will process all requests on that channel. If a channel is accepted without a
 	// defined handler, the channel is closed as well as the connection.
-	Handlers map[string]SSHHandler
+	// Handlers map[string]SSHHandler
+
+	// Router handles all the channel routing required by the server.
+	Router *router.Router
 
 	// Logger logs errors and debug output for the SSH server.
 	Logger log.Logger
@@ -47,6 +55,10 @@ type Config struct {
 	// valid for the given user. For example, see CertChecker.Authenticate.
 	PublicKeyCallback func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.Permissions, error)
 
+	// DiscardRequests disables all out-of-band requests not associated with a channel.
+	// This is generally encouraged and protects agains unknown requests.
+	DiscardRequests bool
+
 	// sshConfig is used to verify incoming connections.
 	sshConfig *ssh.ServerConfig
 }
@@ -64,12 +76,4 @@ func (c *Config) SSHConfig() *ssh.ServerConfig {
 	}
 	sshConfig.AddHostKey(c.PrivateKey)
 	return sshConfig
-}
-
-// Handler is a helper method for determining if a channel handler has been defined.
-func (c *Config) Handler(channel string) (handler SSHHandler, ok bool) {
-	c.Lock()
-	handler, ok = c.Handlers[channel]
-	c.Unlock()
-	return
 }

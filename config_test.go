@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -103,8 +104,8 @@ type EchoHandler struct {
 	logger log.Logger
 }
 
-func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Channel, requests <-chan *ssh.Request) error {
-	defer channel.Close()
+func (e *EchoHandler) Handle(ctx *router.Context) error {
+	defer ctx.Channel.Close()
 	e.logger.Info("echo handle called!")
 
 	// Create tomb for terminal goroutines
@@ -118,7 +119,7 @@ func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Chan
 
 	in := make(chan msg)
 	defer close(in)
-	reader := bufio.NewReader(channel)
+	reader := bufio.NewReader(ctx.Channel)
 	tmb.Go(func() error {
 		tmb.Go(func() error {
 			for {
@@ -130,7 +131,7 @@ func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Chan
 
 				select {
 				case in <- msg{line, pre, err}:
-				case <-t.Dying():
+				case <-ctx.Context.Done():
 					tmb.Kill(nil)
 					return nil
 				case <-tmb.Dying():
@@ -145,7 +146,7 @@ func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Chan
 				select {
 				case <-tmb.Dying():
 					return nil
-				case <-t.Dying():
+				case <-ctx.Context.Done():
 					tmb.Kill(nil)
 					return nil
 				case m := <-in:
@@ -155,7 +156,7 @@ func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Chan
 					}
 
 					// Send echo
-					channel.Write(m.line)
+					ctx.Channel.Write(m.line)
 				}
 			}
 		})
@@ -168,8 +169,8 @@ func (e *EchoHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Chan
 type BadHandler struct {
 }
 
-func (BadHandler) Handle(t tomb.Tomb, conn *ssh.ServerConn, channel ssh.Channel, requests <-chan *ssh.Request) error {
-	defer channel.Close()
+func (BadHandler) Handle(ctx *router.Context) error {
+	defer ctx.Channel.Close()
 	return fmt.Errorf("An error occurred")
 }
 
@@ -189,11 +190,15 @@ func TestConfig(t *testing.T) {
 		t.Fatalf("Private key could not be parsed", err.Error())
 	}
 
+	r := router.New(logger, nil, nil)
+	r.Register("/echo", &EchoHandler{log.New("echo")})
+
 	cfg := Config{
 		Deadline: time.Second,
-		Handlers: map[string]SSHHandler{
-			"echo": &EchoHandler{log.New("echo")},
-		},
+		Router:   r,
+		// Handlers: map[string]SSHHandler{
+		// 	"echo": &EchoHandler{log.New("echo")},
+		// },
 		Logger:            logger,
 		Bind:              ":9022",
 		PrivateKey:        signer,
@@ -213,14 +218,14 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, publicKeyCallback, c.PublicKeyCallback, "PublicKeyCallback should use the one we passed in")
 	assert.Equal(t, authLogCallback, c.AuthLogCallback, "AuthLogCallback should use the one we passed in")
 
-	// Test Handlers
-	h, ok := cfg.Handler("echo")
-	assert.True(t, ok, "Echo handler should be registered")
-	assert.NotNil(t, h, "Echo handler should not be nil")
+	// // Test Handlers
+	// h, ok := cfg.Handler("echo")
+	// assert.True(t, ok, "Echo handler should be registered")
+	// assert.NotNil(t, h, "Echo handler should not be nil")
 
-	h, ok = cfg.Handler("shell")
-	assert.False(t, ok, "Shell handler should be registered")
-	assert.Nil(t, h, "Shell handler should be nil")
+	// h, ok = cfg.Handler("shell")
+	// assert.False(t, ok, "Shell handler should not be registered")
+	// assert.Nil(t, h, "Shell handler should be nil")
 }
 
 func TestEmptyBindConfig(t *testing.T) {
