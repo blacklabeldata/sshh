@@ -234,7 +234,7 @@ func TestEmptyBindConfig(t *testing.T) {
 	}
 
 	// Create new server
-	_, err := NewSSHServer(&cfg)
+	_, err := New(&cfg)
 	assert.NotNil(t, err, "Empty bind addr should cause an error")
 }
 
@@ -244,7 +244,7 @@ func TestBadAddrConfig(t *testing.T) {
 	}
 
 	// Create new server
-	_, err := NewSSHServer(&cfg)
+	_, err := New(&cfg)
 	assert.NotNil(t, err, "Invalid addr should return an error")
 }
 
@@ -254,6 +254,6 @@ func TestUnavailableAddrConfig(t *testing.T) {
 	}
 
 	// Create new server
-	_, err := NewSSHServer(&cfg)
+	_, err := New(&cfg)
 	assert.NotNil(t, err, "Invalid addr should return an error")
 }
