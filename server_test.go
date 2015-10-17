@@ -1,10 +1,13 @@
 package sshh
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/blacklabeldata/grim"
+	sshmocks "github.com/blacklabeldata/mockery/ssh"
 	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
 
@@ -64,12 +67,17 @@ func (suite *ServerSuite) createConfig() Config {
 func (suite *ServerSuite) SetupTest() {
 
 	cfg := suite.createConfig()
-	server, err := NewSSHServer(&cfg)
+	server, err := New(&cfg)
 	if err != nil {
 		suite.Fail("error creating server: " + err.Error())
 	}
 	suite.server = &server
 	suite.server.Start()
+}
+
+// TearDownSuite cleans up suite state after all the tests have completed.
+func (suite *ServerSuite) TearDownTest() {
+	suite.server.Stop()
 }
 
 func (suite *ServerSuite) TestClientConnection() {
@@ -133,6 +141,7 @@ func (suite *ServerSuite) TestUnknownChannel() {
 	// Open channel
 	_, _, err = client.OpenChannel("shell", []byte{})
 	suite.NotNil(err, "server should not accept shell channels")
+	suite.T().Logf(err.Error())
 }
 
 func (suite *ServerSuite) TestHandlerError() {
@@ -163,7 +172,33 @@ func (suite *ServerSuite) TestHandlerError() {
 	defer channel.Close()
 }
 
-// TearDownSuite cleans up suite state after all the tests have completed.
-func (suite *ServerSuite) TearDownTest() {
-	suite.server.Stop()
+func (suite *ServerSuite) TestUnacceptableChannel() {
+	g := grim.Reaper()
+
+	r := router.New(log.NullLog, nil, nil)
+	r.Register("/echo", &EchoHandler{log.New("echo")})
+	r.Register("/bad", &BadHandler{})
+
+	acceptErr := errors.New("accept error")
+	ch := &sshmocks.MockNewChannel{
+		TypeName:  "/echo",
+		AcceptErr: acceptErr,
+	}
+	ch.On("ChannelType").Return("/echo")
+	ch.On("Accept").Return(nil, nil, acceptErr)
+	ch.On("Reject", ChannelAcceptError, "/echo").Return(errors.New("unknown reason 1000"))
+
+	conn := &sshmocks.MockConn{}
+	conn.On("Close").Return(nil)
+	serverConn := ssh.ServerConn{
+		Conn: conn,
+	}
+	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
+	g.Wait()
+
+	// assert that the expectations were met
+	ch.AssertCalled(suite.T(), "ChannelType")
+	ch.AssertCalled(suite.T(), "Accept")
+	ch.AssertCalled(suite.T(), "Reject", ChannelAcceptError, "/echo")
+	conn.AssertCalled(suite.T(), "Close")
 }

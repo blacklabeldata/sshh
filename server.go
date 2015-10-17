@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"time"
 
 	log "github.com/mgutz/logxi/v1"
@@ -17,7 +18,7 @@ import (
 // NewSSHServer creates a new server with the given config. The server will call `cfg.SSHConfig()` to setup
 // the server. If an error occurs it will be returned. If the Bind address is empty or invalid
 // an error will be returned. If there is an error starting the TCP server, the error will be returned.
-func NewSSHServer(cfg *Config) (server SSHServer, err error) {
+func New(cfg *Config) (server SSHServer, err error) {
 	if cfg.Context == nil {
 		return SSHServer{}, errors.New("Config has no context")
 	}
@@ -183,7 +184,6 @@ func channelHandler(g grim.GrimReaper, logger log.Logger, conn *ssh.ServerConn, 
 		if !r.HasRoute(chType) {
 			logger.Info("UnknownChannelType", "type", chType)
 			ch.Reject(ssh.UnknownChannelType, chType)
-			g.Kill()
 			return
 		}
 
@@ -191,19 +191,49 @@ func channelHandler(g grim.GrimReaper, logger log.Logger, conn *ssh.ServerConn, 
 		channel, requests, err := ch.Accept()
 		if err != nil {
 			logger.Warn("Error creating channel", "type", chType, "err", err)
-			g.Kill()
+			ch.Reject(ChannelAcceptError, chType)
+			return
+		}
+
+		// Parse channel URI
+		uri, err := url.ParseRequestURI(chType)
+		if err != nil {
+			logger.Warn("Error parsing channel type", "type", chType, "err", err)
+			ch.Reject(InvalidChannelType, "invalid channel URI")
+			return
+		} else if uri.Host != "" {
+			logger.Warn("URI hosts not supported", "type", chType)
+			ch.Reject(HostNotSupported, "hosts are not supported in the channel URI")
+			return
+		} else if uri.Scheme != "" {
+			logger.Warn("URI schemes not supported", "type", chType)
+			ch.Reject(SchemeNotSupported, "schemes are not supported in the channel URI")
+			return
+		} else if uri.User != nil {
+			logger.Warn("URI users not supported", "type", chType)
+			ch.Reject(UserNotSupported, "users are not supported in the channel URI")
+			return
+		}
+
+		// Parse query params
+		values, err := url.ParseQuery(uri.RawQuery)
+		if err != nil {
+			logger.Warn("Error parsing query params", "values", values, "err", err)
+			ch.Reject(InvalidQueryParams, "invalid query params in channel type")
 			return
 		}
 
 		// Handle the channel
 		err = r.Handle(&router.Context{
-			Path:     chType,
+			Path:     uri.Path,
 			Context:  c,
+			Values:   values,
 			Channel:  channel,
 			Requests: requests,
 		})
 		if err != nil {
 			logger.Warn("Error handling channel", "type", chType, "err", err)
+			ch.Reject(ChannelHandleError, fmt.Sprintf("error handling channel: %s", err.Error()))
 			return
 		}
 	}

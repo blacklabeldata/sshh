@@ -1,6 +1,8 @@
 package router
 
 import (
+	"net/url"
+
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -26,6 +28,7 @@ type PanicHandler interface {
 type Context struct {
 	Path     string
 	Params   Params
+	Values   url.Values
 	Context  context.Context
 	Channel  ssh.Channel
 	Requests <-chan *ssh.Request

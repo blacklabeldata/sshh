@@ -10,8 +10,8 @@ var ErrUnknownChannel = errors.New("Unknown channel type")
 
 func New(l log.Logger, panicHandler PanicHandler, notFound Handler) *Router {
 	return &Router{
-		root:         new(node),
-		logger:       l,
+		root: new(node),
+		// logger:       l,
 		PanicHandler: panicHandler,
 		NotFound:     notFound,
 	}
