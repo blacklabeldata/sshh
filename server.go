@@ -180,6 +180,25 @@ func channelHandler(g grim.GrimReaper, logger log.Logger, conn *ssh.ServerConn, 
 		// Get channel type
 		chType := ch.ChannelType()
 
+		// Parse channel URI
+		uri, err := url.ParseRequestURI(chType)
+		if err != nil {
+			logger.Warn("Error parsing channel type", "type", chType, "err", err)
+			ch.Reject(InvalidChannelType, "invalid channel URI")
+			return
+		} else if reject(chType, uri, ch, logger) {
+			return
+		}
+		chType = uri.Path
+
+		// Parse query params
+		values, err := url.ParseQuery(uri.RawQuery)
+		if err != nil {
+			logger.Warn("Error parsing query params", "values", values, "err", err)
+			ch.Reject(InvalidQueryParams, "invalid query params in channel type")
+			return
+		}
+
 		// Determine if channel is acceptable (has a registered handler)
 		if !r.HasRoute(chType) {
 			logger.Info("UnknownChannelType", "type", chType)
@@ -192,34 +211,6 @@ func channelHandler(g grim.GrimReaper, logger log.Logger, conn *ssh.ServerConn, 
 		if err != nil {
 			logger.Warn("Error creating channel", "type", chType, "err", err)
 			ch.Reject(ChannelAcceptError, chType)
-			return
-		}
-
-		// Parse channel URI
-		uri, err := url.ParseRequestURI(chType)
-		if err != nil {
-			logger.Warn("Error parsing channel type", "type", chType, "err", err)
-			ch.Reject(InvalidChannelType, "invalid channel URI")
-			return
-		} else if uri.Host != "" {
-			logger.Warn("URI hosts not supported", "type", chType)
-			ch.Reject(HostNotSupported, "hosts are not supported in the channel URI")
-			return
-		} else if uri.Scheme != "" {
-			logger.Warn("URI schemes not supported", "type", chType)
-			ch.Reject(SchemeNotSupported, "schemes are not supported in the channel URI")
-			return
-		} else if uri.User != nil {
-			logger.Warn("URI users not supported", "type", chType)
-			ch.Reject(UserNotSupported, "users are not supported in the channel URI")
-			return
-		}
-
-		// Parse query params
-		values, err := url.ParseQuery(uri.RawQuery)
-		if err != nil {
-			logger.Warn("Error parsing query params", "values", values, "err", err)
-			ch.Reject(InvalidQueryParams, "invalid query params in channel type")
 			return
 		}
 
@@ -237,4 +228,21 @@ func channelHandler(g grim.GrimReaper, logger log.Logger, conn *ssh.ServerConn, 
 			return
 		}
 	}
+}
+
+func reject(chType string, uri *url.URL, ch ssh.NewChannel, logger log.Logger) bool {
+	if uri.Scheme != "" {
+		logger.Warn("URI schemes not supported", "type", chType)
+		ch.Reject(SchemeNotSupported, "schemes are not supported in the channel URI")
+		return true
+	} else if uri.User != nil {
+		logger.Warn("URI users not supported", "type", chType)
+		ch.Reject(UserNotSupported, "users are not supported in the channel URI")
+		return true
+	} else if uri.Host != "" {
+		logger.Warn("URI hosts not supported", "type", chType)
+		ch.Reject(HostNotSupported, "hosts are not supported in the channel URI")
+		return true
+	}
+	return false
 }
