@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -23,15 +22,11 @@ type Config struct {
 	// be unresponsive before shutting down.
 	Deadline time.Duration
 
-	// Handlers is a map of SSHHandlers which process incoming connections. The map
-	// consists of channel names as keys and SSHHandlers as the values. If a
-	// client connects and creates a channel with a defined SSHHandler, the handler
-	// will process all requests on that channel. If a channel is accepted without a
-	// defined handler, the channel is closed as well as the connection.
-	// Handlers map[string]SSHHandler
+	// Dispatcher handles all open channel requests and dispatches them to a handler.
+	Dispatcher Dispatcher
 
-	// Router handles all the channel routing required by the server.
-	Router *router.Router
+	// Consumer processes all global ssh.Requests for the life of the connection.
+	Consumer RequestConsumer
 
 	// Logger logs errors and debug output for the SSH server.
 	Logger log.Logger
@@ -54,10 +49,6 @@ type Config struct {
 	// key authentication. It must return true if the given public key is
 	// valid for the given user. For example, see CertChecker.Authenticate.
 	PublicKeyCallback func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.Permissions, error)
-
-	// DiscardRequests disables all out-of-band requests not associated with a channel.
-	// This is generally encouraged and protects agains unknown requests.
-	DiscardRequests bool
 
 	// sshConfig is used to verify incoming connections.
 	sshConfig *ssh.ServerConfig

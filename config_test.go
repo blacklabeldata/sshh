@@ -104,7 +104,7 @@ type EchoHandler struct {
 	logger log.Logger
 }
 
-func (e *EchoHandler) Handle(ctx *router.Context) error {
+func (e *EchoHandler) Handle(ctx *router.UrlContext) error {
 	defer ctx.Channel.Close()
 	e.logger.Info("echo handle called!")
 
@@ -169,7 +169,7 @@ func (e *EchoHandler) Handle(ctx *router.Context) error {
 type BadHandler struct {
 }
 
-func (BadHandler) Handle(ctx *router.Context) error {
+func (BadHandler) Handle(ctx *router.UrlContext) error {
 	defer ctx.Channel.Close()
 	return fmt.Errorf("an error occurred")
 }
@@ -195,7 +195,10 @@ func TestConfig(t *testing.T) {
 
 	cfg := Config{
 		Deadline: time.Second,
-		Router:   r,
+		Dispatcher: &UrlDispatcher{
+			Router: r,
+			Logger: logger,
+		},
 		// Handlers: map[string]SSHHandler{
 		// 	"echo": &EchoHandler{log.New("echo")},
 		// },
