@@ -8,24 +8,24 @@ import (
 )
 
 type Handler interface {
-	Handle(*Context) error
+	Handle(*UrlContext) error
 }
 
-type HandlerFunc func(*Context) error
+type HandlerFunc func(*UrlContext) error
 
 type basicHandler struct {
 	hf HandlerFunc
 }
 
-func (b *basicHandler) Handle(c *Context) error {
+func (b *basicHandler) Handle(c *UrlContext) error {
 	return b.hf(c)
 }
 
 type PanicHandler interface {
-	Handle(*Context, interface{})
+	Handle(*UrlContext, interface{})
 }
 
-type Context struct {
+type UrlContext struct {
 	Path     string
 	Params   Params
 	Values   url.Values

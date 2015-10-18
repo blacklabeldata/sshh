@@ -46,7 +46,7 @@ func (r *Router) GetRoute(path string) (Handler, Params, bool) {
 	return nil, nil, false
 }
 
-func (r *Router) callRoute(c *Context) (err error, called bool) {
+func (r *Router) callRoute(c *UrlContext) (err error, called bool) {
 	if handler, params, ok := r.GetRoute(c.Path); ok {
 		c.Params = params
 		err = handler.Handle(c)
@@ -55,7 +55,7 @@ func (r *Router) callRoute(c *Context) (err error, called bool) {
 	return
 }
 
-func (r *Router) Handle(c *Context) error {
+func (r *Router) Handle(c *UrlContext) error {
 	if r.PanicHandler != nil {
 		defer r.recv(c)
 	}
@@ -85,7 +85,7 @@ func (r *Router) Handle(c *Context) error {
 	return nil
 }
 
-func (r *Router) recv(c *Context) {
+func (r *Router) recv(c *UrlContext) {
 	if rcv := recover(); rcv != nil {
 		r.PanicHandler.Handle(c, rcv)
 	}

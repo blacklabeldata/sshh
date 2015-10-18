@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blacklabeldata/grim"
 	sshmocks "github.com/blacklabeldata/mockery/ssh"
 	"github.com/blacklabeldata/sshh/router"
 	log "github.com/mgutz/logxi/v1"
@@ -50,7 +49,10 @@ func (suite *ServerSuite) createConfig() Config {
 	cfg := Config{
 		Context:  context.Background(),
 		Deadline: time.Second,
-		Router:   r,
+		Dispatcher: &UrlDispatcher{
+			Router: r,
+			Logger: logger,
+		},
 		// Handlers: map[string]SSHHandler{
 		// 	"echo": &EchoHandler{log.New("echo")},
 		// 	"bad":  &BadHandler{},
@@ -173,7 +175,7 @@ func (suite *ServerSuite) TestHandlerError() {
 }
 
 func (suite *ServerSuite) TestUnacceptableChannel() {
-	g := grim.Reaper()
+	// g := grim.Reaper()
 
 	r := router.New(log.NullLog, nil, nil)
 	r.Register("/echo", &EchoHandler{log.New("echo")})
@@ -193,8 +195,12 @@ func (suite *ServerSuite) TestUnacceptableChannel() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
-	g.Wait()
+
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
+	// g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
+	// g.Wait()
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
@@ -204,7 +210,7 @@ func (suite *ServerSuite) TestUnacceptableChannel() {
 }
 
 func (suite *ServerSuite) TestInvalidChannelType() {
-	g := grim.Reaper()
+	// g := grim.Reaper()
 
 	r := router.New(log.NullLog, nil, nil)
 	r.Register("/echo", &EchoHandler{log.New("echo")})
@@ -223,8 +229,12 @@ func (suite *ServerSuite) TestInvalidChannelType() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
-	g.Wait()
+
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
+	// g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
+	// g.Wait()
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
@@ -233,7 +243,6 @@ func (suite *ServerSuite) TestInvalidChannelType() {
 }
 
 func (suite *ServerSuite) TestSchemeNotSupported() {
-	g := grim.Reaper()
 
 	r := router.New(log.NullLog, nil, nil)
 	r.Register("/echo", &EchoHandler{log.New("echo")})
@@ -252,8 +261,10 @@ func (suite *ServerSuite) TestSchemeNotSupported() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
-	g.Wait()
+
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
@@ -292,7 +303,6 @@ func (suite *ServerSuite) TestHostNotSupported() {
 }
 
 func (suite *ServerSuite) TestInvalidQueryParams() {
-	g := grim.Reaper()
 
 	channel := "/echo?%"
 	r := router.New(log.NullLog, nil, nil)
@@ -312,8 +322,9 @@ func (suite *ServerSuite) TestInvalidQueryParams() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
-	g.Wait()
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
@@ -322,7 +333,6 @@ func (suite *ServerSuite) TestInvalidQueryParams() {
 }
 
 func (suite *ServerSuite) TestChannelHandleError() {
-	g := grim.Reaper()
 
 	channel := "/bad"
 	r := router.New(log.NullLog, nil, nil)
@@ -345,8 +355,10 @@ func (suite *ServerSuite) TestChannelHandleError() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, log.NullLog, &serverConn, ch, r))
-	g.Wait()
+
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
@@ -357,7 +369,6 @@ func (suite *ServerSuite) TestChannelHandleError() {
 }
 
 func (suite *ServerSuite) TestWildcard() {
-	g := grim.Reaper()
 
 	writer := log.NewConcurrentWriter(os.Stdout)
 	logger := log.NewLogger(writer, "sshh_test")
@@ -379,42 +390,12 @@ func (suite *ServerSuite) TestWildcard() {
 	serverConn := ssh.ServerConn{
 		Conn: conn,
 	}
-	g.SpawnFunc(channelHandler(g, logger, &serverConn, ch, r))
-	g.Wait()
+	// Create dispatcher
+	dispatcher := &UrlDispatcher{Logger: log.NullLog, Router: r}
+	dispatcher.Dispatch(context.Background(), &serverConn, ch)
 
 	// assert that the expectations were met
 	ch.AssertCalled(suite.T(), "ChannelType")
 	ch.AssertCalled(suite.T(), "Reject", ssh.UnknownChannelType, "*")
-	conn.AssertCalled(suite.T(), "Close")
-}
-
-func (suite *ServerSuite) TestShell() {
-	g := grim.Reaper()
-
-	writer := log.NewConcurrentWriter(os.Stdout)
-	logger := log.NewLogger(writer, "sshh_test")
-
-	r := router.New(logger, nil, nil)
-	r.Register("shell", &EchoHandler{log.New("echo")})
-
-	acceptErr := errors.New("accept error")
-	ch := &sshmocks.MockNewChannel{
-		TypeName:  "shell",
-		AcceptErr: acceptErr,
-	}
-	ch.On("ChannelType").Return("shell")
-	ch.On("Reject", ssh.UnknownChannelType, "shell").Return(errors.New("unknown reason 1000"))
-
-	conn := &sshmocks.MockConn{}
-	conn.On("Close").Return(nil)
-	serverConn := ssh.ServerConn{
-		Conn: conn,
-	}
-	g.SpawnFunc(channelHandler(g, logger, &serverConn, ch, r))
-	g.Wait()
-
-	// assert that the expectations were met
-	ch.AssertCalled(suite.T(), "ChannelType")
-	ch.AssertCalled(suite.T(), "Reject", ssh.UnknownChannelType, "shell")
 	conn.AssertCalled(suite.T(), "Close")
 }
