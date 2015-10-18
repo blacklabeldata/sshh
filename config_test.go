@@ -171,7 +171,7 @@ type BadHandler struct {
 
 func (BadHandler) Handle(ctx *router.Context) error {
 	defer ctx.Channel.Close()
-	return fmt.Errorf("An error occurred")
+	return fmt.Errorf("an error occurred")
 }
 
 func TestConfig(t *testing.T) {
