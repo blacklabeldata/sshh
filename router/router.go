@@ -46,10 +46,10 @@ func (r *Router) GetRoute(path string) (Handler, Params, bool) {
 	return nil, nil, false
 }
 
-func (r *Router) callRoute(c *Context) (called bool) {
+func (r *Router) callRoute(c *Context) (err error, called bool) {
 	if handler, params, ok := r.GetRoute(c.Path); ok {
 		c.Params = params
-		handler.Handle(c)
+		err = handler.Handle(c)
 		called = true
 	}
 	return
@@ -60,16 +60,18 @@ func (r *Router) Handle(c *Context) error {
 		defer r.recv(c)
 	}
 
-	if r.callRoute(c) {
-		return nil
+	err, ok := r.callRoute(c)
+	if ok {
+		return err
 	} else if c.Path != "/" {
 
 		// Try to fix the request path
 		fixedPath, found := r.root.findCaseInsensitivePath(CleanPath(c.Path), true)
 		if found {
 			c.Path = string(fixedPath)
-			if r.callRoute(c) {
-				return nil
+			err, ok = r.callRoute(c)
+			if ok {
+				return err
 			}
 		}
 	}
