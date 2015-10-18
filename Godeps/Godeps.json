@@ -1,7 +1,18 @@
 {
 	"ImportPath": "github.com/blacklabeldata/sshh",
 	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/blacklabeldata/grim",
+			"Rev": "a4f5317623b343a52ad65f032f00183daac42875"
+		},
+		{
+			"ImportPath": "github.com/blacklabeldata/mockery/ssh",
+			"Rev": "48ced7f9330bdfb84ae78d7dd02a5bfdf075b14d"
+		},
 		{
 			"ImportPath": "github.com/mattn/go-colorable",
 			"Rev": "d67e0b7d1797975196499f79bcc322c08b9f218b"
@@ -19,7 +30,15 @@
 			"Rev": "002f5bf05304c9df2910ef0a5f9e5ec6bbc7c8c3"
 		},
 		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "cbeaeb16a013161a98496fad62933b1d21786672"
+		},
+		{
 			"ImportPath": "github.com/stretchr/testify/assert",
+			"Rev": "de7fcff264cd05cc0c90c509ea789a436a0dd206"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
 			"Rev": "de7fcff264cd05cc0c90c509ea789a436a0dd206"
 		},
 		{
@@ -29,6 +48,10 @@
 		{
 			"ImportPath": "golang.org/x/crypto/ssh",
 			"Rev": "c84e1f8e3a7e322d497cd16c0e8a13c7e127baf3"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "dfe268fd2bb5c793f4c083803609fce9806c6f80"
 		},
 		{
 			"ImportPath": "gopkg.in/tomb.v2",
